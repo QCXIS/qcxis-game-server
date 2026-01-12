@@ -1,7 +1,6 @@
 use crate::auth;
 use crate::game;
 use crate::models::{ClientMessage, Player, ServerMessage};
-use crate::models::GameState;
 use crate::state::{AppState, PlayerConnection};
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
@@ -21,7 +20,7 @@ pub async fn handle_connection(stream: TcpStream, state: AppState) -> Result<(),
     let mut authenticated = false;
 
     // Spawn task to handle outgoing messages
-    let mut send_task = tokio::spawn(async move {
+    let send_task = tokio::spawn(async move {
         while let Some(message) = rx.recv().await {
             if ws_sender.send(Message::Text(message)).await.is_err() {
                 break;
@@ -140,7 +139,6 @@ pub async fn handle_connection(stream: TcpStream, state: AppState) -> Result<(),
                                 let msg = serde_json::to_string(&pong).unwrap();
                                 let _ = tx.send(msg);
                             }
-                            _ => {}
                         }
                     }
                     Err(e) => {

@@ -1,6 +1,6 @@
-use crate::models::{GameState, GameStatus, Player, ServerMessage};
+use crate::models::{GameStatus, Player, ServerMessage};
 use crate::state::AppState;
-use tracing::{info, warn};
+use tracing::info;
 
 pub async fn handle_player_join(
     state: &AppState,

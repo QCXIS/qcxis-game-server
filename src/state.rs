@@ -1,8 +1,7 @@
-use crate::models::{GameState, Player};
+use crate::models::GameState;
 use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use uuid::Uuid;
 
 pub type Tx = mpsc::UnboundedSender<String>;
 pub type GameId = String;
@@ -15,6 +14,7 @@ pub struct AppState {
     pub game_players: Arc<DashMap<GameId, Vec<PlayerId>>>,
 }
 
+#[allow(dead_code)]
 pub struct PlayerConnection {
     pub player_id: String,
     pub user_id: String,
@@ -89,6 +89,7 @@ impl AppState {
         }
     }
 
+    #[allow(dead_code)]
     pub fn send_to_player(&self, player_id: &str, message: &str) {
         if let Some(conn) = self.player_connections.get(player_id) {
             let _ = conn.tx.send(message.to_string());
