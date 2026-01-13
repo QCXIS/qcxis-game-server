@@ -18,6 +18,9 @@ pub async fn handle_connection(stream: TcpStream, state: AppState) -> Result<(),
     let mut player_id: Option<String> = None;
     let mut game_id: Option<String> = None;
     let mut authenticated = false;
+    
+    // Clone state for cleanup
+    let cleanup_state = state.clone();
 
     // Spawn task to handle outgoing messages
     let send_task = tokio::spawn(async move {
@@ -159,10 +162,12 @@ pub async fn handle_connection(stream: TcpStream, state: AppState) -> Result<(),
         }
     }
 
-    // Cleanup on disconnect
-    if let (Some(pid), Some(gid)) = (player_id, game_id) {
-        state.remove_player_connection(&pid);
-        game::handle_player_leave(&state, &gid, &pid).await;
+    // Cleanup on disconnect - always clean up if authenticated
+    info!("Connection closed, cleaning up...");
+    if let (Some(pid), Some(gid)) = (player_id.clone(), game_id.clone()) {
+        info!("Removing player {} from game {}", pid, gid);
+        cleanup_state.remove_player_connection(&pid);
+        game::handle_player_leave(&cleanup_state, &gid, &pid).await;
     }
 
     send_task.abort();
