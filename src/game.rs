@@ -42,6 +42,14 @@ pub async fn handle_player_leave(state: &AppState, game_id: &str, player_id: &st
     
     state.broadcast_to_game(game_id, &message, None);
     info!("Player {} left game {}", player_id, game_id);
+    
+    // Check if game is empty or finished, clean it up
+    if let Some(game) = state.get_game(game_id) {
+        if game.players.is_empty() || game.status == GameStatus::Finished {
+            state.remove_game(game_id);
+            info!("Game {} removed (empty or finished)", game_id);
+        }
+    }
 }
 
 pub async fn handle_start_game(state: &AppState, game_id: &str, player_id: &str) -> Result<(), String> {

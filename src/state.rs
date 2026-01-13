@@ -39,6 +39,11 @@ impl AppState {
         self.games.get(game_id).map(|g| g.clone())
     }
 
+    pub fn remove_game(&self, game_id: &str) -> Option<GameState> {
+        self.game_players.remove(game_id);
+        self.games.remove(game_id).map(|(_, game)| game)
+    }
+
     pub fn update_game<F>(&self, game_id: &str, f: F) -> Option<GameState>
     where
         F: FnOnce(&mut GameState),
