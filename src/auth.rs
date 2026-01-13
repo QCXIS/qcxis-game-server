@@ -1,6 +1,7 @@
 use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use serde::{Deserialize, Serialize};
 use std::env;
+use base64::{Engine as _, engine::general_purpose};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -15,7 +16,7 @@ pub fn verify_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> 
     
     // Handle Laravel's base64: prefix
     let secret_bytes = if secret.starts_with("base64:") {
-        match base64::decode(&secret[7..]) {
+        match general_purpose::STANDARD.decode(&secret[7..]) {
             Ok(bytes) => bytes,
             Err(_) => secret.as_bytes().to_vec(),
         }
