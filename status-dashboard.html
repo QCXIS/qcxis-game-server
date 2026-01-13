@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QCXIS Game Server - Status Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-slow {
+            animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-lg">
+                🎮 QCXIS Game Server
+            </h1>
+            <div class="inline-flex items-center gap-3">
+                <span id="statusBadge" class="px-6 py-2 rounded-full text-sm font-bold bg-red-500 text-white shadow-lg">
+                    OFFLINE
+                </span>
+                <span class="text-white/90 text-sm pulse-slow">● Auto-refresh every 2s</span>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg mb-6 shadow-lg">
+            <div class="flex items-center">
+                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                </svg>
+                <span id="errorText"></span>
+            </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- System Resources Card -->
+            <div class="bg-white rounded-xl shadow-xl p-6 hover:shadow-2xl transition-shadow">
+                <div class="flex items-center mb-4">
+                    <div class="p-3 bg-purple-100 rounded-lg">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800 ml-3">System Resources</h2>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm text-gray-600 font-medium">CPU Usage</span>
+                            <span id="cpuUsage" class="text-lg font-bold text-gray-900">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                            <div id="cpuProgress" class="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm text-gray-600 font-medium">Memory Used</span>
+                            <span id="memoryUsed" class="text-lg font-bold text-gray-900">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                            <div id="memoryProgress" class="bg-gradient-to-r from-blue-500 to-cyan-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-2 border-t border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Process Memory</span>
+                            <span id="processMemory" class="text-base font-semibold text-gray-700">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Statistics Card -->
+            <div class="bg-white rounded-xl shadow-xl p-6 hover:shadow-2xl transition-shadow">
+                <div class="flex items-center mb-4">
+                    <div class="p-3 bg-green-100 rounded-lg">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800 ml-3">Game Statistics</h2>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600 font-medium">Active Games</span>
+                            <span id="totalGames" class="text-3xl font-black text-green-600">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600 font-medium">Active Connections</span>
+                            <span id="activeConnections" class="text-3xl font-black text-blue-600">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600 font-medium">Total Players</span>
+                            <span id="totalPlayers" class="text-3xl font-black text-purple-600">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Info Card -->
+            <div class="bg-white rounded-xl shadow-xl p-6 hover:shadow-2xl transition-shadow">
+                <div class="flex items-center mb-4">
+                    <div class="p-3 bg-blue-100 rounded-lg">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800 ml-3">Server Info</h2>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600 font-medium">Uptime</span>
+                        <span id="uptime" class="text-base font-bold text-gray-900">--</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600 font-medium">Total Memory</span>
+                        <span id="totalMemory" class="text-base font-bold text-gray-900">--</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600 font-medium">Memory Usage %</span>
+                        <span id="memoryPercent" class="text-base font-bold text-gray-900">--</span>
+                    </div>
+                    
+                    <div class="pt-2 border-t border-gray-200">
+                        <div class="flex items-center justify-center text-xs text-gray-500">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                            </svg>
+                            Last updated: <span id="lastUpdate" class="ml-1 font-medium">Never</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Real-time Metrics Chart -->
+            <div class="bg-white rounded-xl shadow-xl p-6 hover:shadow-2xl transition-shadow">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    System Metrics (Last 60s)
+                </h2>
+                <canvas id="systemChart"></canvas>
+            </div>
+
+            <!-- Game Activity Chart -->
+            <div class="bg-white rounded-xl shadow-xl p-6 hover:shadow-2xl transition-shadow">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                    Game Activity (Last 60s)
+                </h2>
+                <canvas id="gameChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Change this to your production URL
+        const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8081/status' 
+            : 'https://game-ws.qcxis.com/status';
+        const REFRESH_INTERVAL = 2000; // 2 seconds
+
+        // System Chart setup
+        const systemCtx = document.getElementById('systemChart').getContext('2d');
+        const maxDataPoints = 30;
+        const systemChartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'CPU Usage (%)',
+                    data: [],
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Memory Usage (%)',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        };
+
+        const systemChart = new Chart(systemCtx, {
+            type: 'line',
+            data: systemChartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        displayColors: true,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Game Activity Chart setup
+        const gameCtx = document.getElementById('gameChart').getContext('2d');
+        const gameChartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Active Games',
+                    data: [],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Active Connections',
+                    data: [],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Total Players',
+                    data: [],
+                    borderColor: '#ec4899',
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        };
+
+        const gameChart = new Chart(gameCtx, {
+            type: 'line',
+            data: gameChartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        displayColors: true,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                if (Number.isInteger(value)) {
+                                    return value;
+                                }
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (days > 0) {
+                return `${days}d ${hours}h ${minutes}m`;
+            } else if (hours > 0) {
+                return `${hours}h ${minutes}m ${secs}s`;
+            } else {
+                return `${minutes}m ${secs}s`;
+            }
+        }
+
+        function getColorClass(value, type) {
+            if (type === 'cpu' || type === 'memory') {
+                if (value >= 90) return 'text-red-600';
+                if (value >= 70) return 'text-yellow-600';
+                return 'text-green-600';
+            }
+            return 'text-gray-900';
+        }
+
+        function updateMetrics(data) {
+            // Update status badge
+            const badge = document.getElementById('statusBadge');
+            if (data.status === 'online') {
+                badge.textContent = 'ONLINE';
+                badge.className = 'px-6 py-2 rounded-full text-sm font-bold bg-green-500 text-white shadow-lg animate-pulse';
+            } else {
+                badge.textContent = 'OFFLINE';
+                badge.className = 'px-6 py-2 rounded-full text-sm font-bold bg-red-500 text-white shadow-lg';
+            }
+
+            // System metrics
+            const cpuValue = data.system.cpu_usage_percent.toFixed(1);
+            const cpuElement = document.getElementById('cpuUsage');
+            cpuElement.textContent = `${cpuValue}%`;
+            cpuElement.className = `text-lg font-bold ${getColorClass(parseFloat(cpuValue), 'cpu')}`;
+            document.getElementById('cpuProgress').style.width = `${cpuValue}%`;
+            
+            const memPercent = data.system.memory_used_percent.toFixed(1);
+            const memElement = document.getElementById('memoryPercent');
+            memElement.textContent = `${memPercent}%`;
+            memElement.className = `text-base font-bold ${getColorClass(parseFloat(memPercent), 'memory')}`;
+            
+            document.getElementById('memoryUsed').textContent = `${data.system.memory_used_mb} MB`;
+            document.getElementById('memoryProgress').style.width = `${memPercent}%`;
+            document.getElementById('processMemory').textContent = `${data.system.process_memory_mb} MB`;
+            document.getElementById('totalMemory').textContent = `${data.system.memory_total_mb} MB`;
+
+            // Game metrics with animation
+            document.getElementById('totalGames').textContent = data.games.total_games;
+            document.getElementById('activeConnections').textContent = data.games.active_connections;
+            document.getElementById('totalPlayers').textContent = data.games.total_players_connected;
+
+            // Server info
+            document.getElementById('uptime').textContent = formatUptime(data.uptime_seconds);
+
+            // Update charts
+            const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            // System chart
+            systemChartData.labels.push(now);
+            systemChartData.datasets[0].data.push(parseFloat(cpuValue));
+            systemChartData.datasets[1].data.push(parseFloat(memPercent));
+
+            // Game chart
+            gameChartData.labels.push(now);
+            gameChartData.datasets[0].data.push(data.games.total_games);
+            gameChartData.datasets[1].data.push(data.games.active_connections);
+            gameChartData.datasets[2].data.push(data.games.total_players_connected);
+
+            // Keep only last N data points
+            if (systemChartData.labels.length > maxDataPoints) {
+                systemChartData.labels.shift();
+                systemChartData.datasets.forEach(dataset => dataset.data.shift());
+                gameChartData.labels.shift();
+                gameChartData.datasets.forEach(dataset => dataset.data.shift());
+            }
+
+            systemChart.update('none');
+            gameChart.update('none');
+
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            
+            // Hide error message
+            document.getElementById('errorMessage').classList.add('hidden');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = `${message}`;
+            errorDiv.classList.remove('hidden');
+            
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = 'OFFLINE';
+            badge.className = 'px-6 py-2 rounded-full text-sm font-bold bg-red-500 text-white shadow-lg';
+        }
+
+        async function fetchMetrics() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                updateMetrics(data);
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+                showError(`Failed to connect to game server: ${error.message}`);
+            }
+        }
+
+        // Initial fetch
+        fetchMetrics();
+
+        // Auto-refresh
+        setInterval(fetchMetrics, REFRESH_INTERVAL);
+    </script>
+</body>
+</html>

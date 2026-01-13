@@ -22,7 +22,6 @@ pub struct GameState {
     pub players: Vec<Player>,
     pub status: GameStatus,
     pub started_at: Option<i64>,
-    pub max_players: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -109,14 +108,10 @@ impl GameState {
             players: Vec::new(),
             status: GameStatus::Waiting,
             started_at: None,
-            max_players: 10,
         }
     }
 
     pub fn add_player(&mut self, player: Player) -> bool {
-        if self.players.len() >= self.max_players as usize {
-            return false;
-        }
         self.players.push(player);
         true
     }

@@ -41,9 +41,9 @@ Edit `.env` and set:
 ```env
 GAME_SERVER_HOST=0.0.0.0
 GAME_SERVER_PORT=8080
+HTTP_SERVER_PORT=8081
 LARAVEL_API_URL=http://localhost:8000
 JWT_SECRET=your-jwt-secret-here  # Must match Laravel's APP_KEY
-MAX_PLAYERS_PER_GAME=10
 GAME_TIMEOUT_SECONDS=300
 ```
 
@@ -62,7 +62,95 @@ cargo build --release
 ./target/release/qcxis-game-server
 ```
 
-The server will start on `ws://0.0.0.0:8080` by default.
+The server will start on:
+- WebSocket: `ws://0.0.0.0:8080`
+- HTTP Status: `http://0.0.0.0:8081`
+
+## 📊 Monitoring & Status Endpoints
+
+The game server provides HTTP endpoints for monitoring and metrics:
+
+### Status Endpoint
+`GET http://localhost:8081/status`
+
+Returns detailed server metrics in JSON format:
+
+```json
+{
+  "status": "online",
+  "uptime_seconds": 3600,
+  "timestamp": 1705123456,
+  "system": {
+    "cpu_usage_percent": 12.5,
+    "memory_used_mb": 512,
+    "memory_total_mb": 8192,
+    "memory_used_percent": 6.25,
+    "process_memory_mb": 45
+  },
+  "games": {
+    "total_games": 5,
+    "active_connections": 25,
+    "total_players_connected": 25
+  }
+}
+```
+
+### Health Check
+`GET http://localhost:8081/health`
+
+Simple health check endpoint:
+
+```json
+{
+  "status": "healthy",
+  "service": "qcxis-game-server"
+}
+```
+
+### Prometheus Metrics
+`GET http://localhost:8081/metrics`
+
+Returns metrics in Prometheus format for monitoring tools like Grafana:
+
+```
+# HELP qcxis_cpu_usage_percent CPU usage percentage
+# TYPE qcxis_cpu_usage_percent gauge
+qcxis_cpu_usage_percent 12.5
+# HELP qcxis_memory_used_mb Memory used in MB
+# TYPE qcxis_memory_used_mb gauge
+qcxis_memory_used_mb 512
+...
+```
+
+### Monitoring Integration
+
+**With Prometheus:**
+Add to `prometheus.yml`:
+```yaml
+scrape_configs:
+  - job_name: 'qcxis-game-server'
+    static_configs:
+      - targets: ['localhost:8081']
+```
+
+**With Grafana:**
+1. Add Prometheus as data source
+2. Import metrics from the `/metrics` endpoint
+3. Create dashboards with queries like:
+   - `qcxis_cpu_usage_percent`
+   - `qcxis_memory_used_mb`
+   - `qcxis_active_connections`
+   - `qcxis_total_games`
+
+**Using the Status Dashboard:**
+1. Open `status-dashboard.html` in your browser
+2. Update the `API_URL` if using a different host/port
+3. Real-time metrics will auto-refresh every 2 seconds
+4. Features:
+   - Live CPU and Memory usage charts
+   - Active games, connections, and player counts
+   - Server uptime and resource utilization
+   - Historical data visualization (last 60 seconds)
 
 ## 🔧 Laravel Integration
 

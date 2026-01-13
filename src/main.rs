@@ -1,6 +1,8 @@
 mod auth;
 mod game;
 mod handlers;
+mod http_server;
+mod metrics;
 mod models;
 mod state;
 
@@ -8,7 +10,7 @@ use dotenv::dotenv;
 use std::env;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use tracing::{info, error};
+use tracing::{error, info};
 use tracing_subscriber;
 
 #[tokio::main]
@@ -22,29 +24,46 @@ async fn main() {
         .init();
 
     // Get configuration from environment
-    let host = env::var("GAME_SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let port = env::var("GAME_SERVER_PORT")
+    let ws_host = env::var("GAME_SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let ws_port = env::var("GAME_SERVER_PORT")
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .expect("GAME_SERVER_PORT must be a valid port number");
 
-    let addr = format!("{}:{}", host, port);
-    let socket_addr: SocketAddr = addr.parse().expect("Unable to parse socket address");
+    let http_port = env::var("HTTP_SERVER_PORT")
+        .unwrap_or_else(|_| "8081".to_string())
+        .parse::<u16>()
+        .expect("HTTP_SERVER_PORT must be a valid port number");
+
+    let ws_addr = format!("{}:{}", ws_host, ws_port);
+    let ws_socket_addr: SocketAddr = ws_addr.parse().expect("Unable to parse WebSocket socket address");
+
+    let http_addr = format!("{}:{}", ws_host, http_port);
+    let http_socket_addr: SocketAddr = http_addr.parse().expect("Unable to parse HTTP socket address");
 
     // Initialize global state
     let state = state::AppState::new();
 
     info!("🎮 QCXIS Game Server starting...");
-    info!("📡 Listening on: ws://{}", socket_addr);
+    info!("📡 WebSocket listening on: ws://{}", ws_socket_addr);
+    info!("📊 HTTP Status listening on: http://{}", http_socket_addr);
 
-    // Start TCP listener
-    let listener = TcpListener::bind(&socket_addr)
+    // Start HTTP server for metrics/status
+    let http_state = state.clone();
+    tokio::spawn(async move {
+        if let Err(e) = http_server::start_http_server(http_socket_addr, http_state).await {
+            error!("HTTP server error: {}", e);
+        }
+    });
+
+    // Start WebSocket TCP listener
+    let listener = TcpListener::bind(&ws_socket_addr)
         .await
-        .expect("Failed to bind");
+        .expect("Failed to bind WebSocket listener");
 
     info!("✅ Game server ready for connections!");
 
-    // Accept connections
+    // Accept WebSocket connections
     while let Ok((stream, addr)) = listener.accept().await {
         let state = state.clone();
         tokio::spawn(async move {

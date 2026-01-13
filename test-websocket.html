@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Server WebSocket Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; margin-top: 0; }
+        h2 { color: #666; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.disconnect { background: #f44336; }
+        button.disconnect:hover { background: #da190b; }
+        button.send { background: #2196F3; }
+        button.send:hover { background: #0b7dda; }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.disconnected {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .status.connected {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status.connecting {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        #messages {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .message.sent {
+            background: #e3f2fd;
+            border-left: 3px solid #2196F3;
+        }
+        .message.received {
+            background: #f1f8e9;
+            border-left: 3px solid #4CAF50;
+        }
+        .message.error {
+            background: #ffebee;
+            border-left: 3px solid #f44336;
+        }
+        .message.system {
+            background: #fff3e0;
+            border-left: 3px solid #ff9800;
+        }
+        .timestamp {
+            color: #999;
+            font-size: 10px;
+            margin-right: 10px;
+        }
+        .quick-message {
+            margin: 5px;
+            padding: 8px 12px;
+            background: #e0e0e0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .quick-message:hover {
+            background: #bdbdbd;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 Game Server WebSocket Test</h1>
+
+    <div class="container">
+        <h2>Connection Settings</h2>
+        
+        <label for="serverUrl">Server URL:</label>
+        <input type="text" id="serverUrl" value="ws://127.0.0.1:8080" placeholder="ws://127.0.0.1:8080">
+        
+        <label for="jwtToken">JWT Token (from Laravel):</label>
+        <input type="text" id="jwtToken" placeholder="Paste your JWT token here">
+        <small style="color: #666;">Generate from Laravel: <code>php artisan tinker</code> → <code>app(App\Services\GameServerService::class)->generateToken('user-id', 'Username')</code></small>
+        
+        <div id="status" class="status disconnected">
+            ⚫ Disconnected
+        </div>
+        
+        <button id="connectBtn" onclick="connect()">Connect</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled class="disconnect">Disconnect</button>
+    </div>
+
+    <div class="container">
+        <h2>Authentication</h2>
+        
+        <label for="gameId">Game ID:</label>
+        <input type="text" id="gameId" value="test-game-123" placeholder="game-uuid">
+        
+        <label for="gameCode">Game Code:</label>
+        <input type="text" id="gameCode" value="TEST01" placeholder="ABCD12">
+        
+        <label for="difficulty">Difficulty:</label>
+        <input type="text" id="difficulty" value="medium" placeholder="low/medium/hard">
+        
+        <label for="textContent">Text Content:</label>
+        <textarea id="textContent">The quick brown fox jumps over the lazy dog.</textarea>
+        
+        <label for="hostId">Host ID:</label>
+        <input type="text" id="hostId" value="host-user-123" placeholder="host-user-id">
+        
+        <button onclick="sendAuth()" class="send">Send Auth Message</button>
+    </div>
+
+    <div class="container">
+        <h2>Quick Actions</h2>
+        
+        <button class="quick-message" onclick="sendPing()">📡 Ping</button>
+        <button class="quick-message" onclick="sendStartGame()">▶️ Start Game</button>
+        <button class="quick-message" onclick="sendProgress()">📊 Update Progress</button>
+        <button class="quick-message" onclick="sendFinish()">🏁 Finish Game</button>
+    </div>
+
+    <div class="container">
+        <h2>Custom Message</h2>
+        
+        <label for="customMessage">JSON Message:</label>
+        <textarea id="customMessage">{"type":"Ping"}</textarea>
+        
+        <button onclick="sendCustom()" class="send">Send Custom Message</button>
+    </div>
+
+    <div class="container">
+        <h2>Messages</h2>
+        <button onclick="clearMessages()" style="float: right; background: #757575;">Clear</button>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+
+        function connect() {
+            const url = document.getElementById('serverUrl').value;
+            const status = document.getElementById('status');
+            
+            status.className = 'status connecting';
+            status.innerHTML = '🟡 Connecting...';
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    log('Connected to game server', 'system');
+                    status.className = 'status connected';
+                    status.innerHTML = '🟢 Connected';
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                };
+                
+                ws.onmessage = (event) => {
+                    log('Received: ' + event.data, 'received');
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Parsed message:', data);
+                    } catch (e) {
+                        console.log('Non-JSON message:', event.data);
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    log('WebSocket error: ' + error, 'error');
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = () => {
+                    log('Disconnected from server', 'system');
+                    status.className = 'status disconnected';
+                    status.innerHTML = '⚫ Disconnected';
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                };
+            } catch (e) {
+                log('Connection error: ' + e.message, 'error');
+                status.className = 'status disconnected';
+                status.innerHTML = '⚫ Connection Failed';
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function send(message) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected to server', 'error');
+                return;
+            }
+            
+            const json = JSON.stringify(message);
+            ws.send(json);
+            log('Sent: ' + json, 'sent');
+        }
+
+        function sendAuth() {
+            const token = document.getElementById('jwtToken').value;
+            if (!token) {
+                alert('Please enter a JWT token first');
+                return;
+            }
+            
+            send({
+                type: 'Auth',
+                token: token,
+                game_id: document.getElementById('gameId').value,
+                game_code: document.getElementById('gameCode').value,
+                difficulty: document.getElementById('difficulty').value,
+                text: document.getElementById('textContent').value,
+                host_id: document.getElementById('hostId').value
+            });
+        }
+
+        function sendPing() {
+            send({ type: 'Ping' });
+        }
+
+        function sendStartGame() {
+            send({ type: 'StartGame' });
+        }
+
+        function sendProgress() {
+            send({
+                type: 'UpdateProgress',
+                progress: 50,
+                wpm: 45,
+                accuracy: 96.5
+            });
+        }
+
+        function sendFinish() {
+            send({
+                type: 'FinishGame',
+                wpm: 65,
+                accuracy: 98.2,
+                time_taken: 120
+            });
+        }
+
+        function sendCustom() {
+            const text = document.getElementById('customMessage').value;
+            try {
+                const message = JSON.parse(text);
+                send(message);
+            } catch (e) {
+                log('Invalid JSON: ' + e.message, 'error');
+            }
+        }
+
+        function log(message, type = 'system') {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'message ' + type;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            div.innerHTML = '<span class="timestamp">' + timestamp + '</span>' + message;
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        // Auto-scroll messages
+        setInterval(() => {
+            const container = document.getElementById('messages');
+            if (container.scrollHeight - container.scrollTop <= container.clientHeight + 50) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 100);
+    </script>
+</body>
+</html>
